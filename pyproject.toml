@@ -3,10 +3,10 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "mercat_analyzer" # Choose your package name
+name = "MeERCAT" 
 version = "0.1.0"
 authors = [
-  { name="YOUR NAME", email="your.email@example.com" }, # *** UPDATE THIS ***
+  { name="Richard Cassidy" }, 
 ]
 description = "Metabolite and Expressed RNA Cross-modality Analysis Tool package."
 readme = "README.md"
@@ -38,5 +38,5 @@ dependencies = [
 # dev = ["pytest", "build", "twine"]
 
 [project.urls]
-"Homepage" = "" # Optional: Add GitHub URL later
-"Bug Tracker" = "" # Optional: Add GitHub Issues URL later
+"Homepage" = "https://github.com/richard-cassidy/MeERCAT" 
+"Bug Tracker" = "https://github.com/richard-cassidy/MeERCAT/issues"
