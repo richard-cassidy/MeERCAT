@@ -1,0 +1,42 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mercat_analyzer" # Choose your package name
+version = "0.1.0"
+authors = [
+  { name="YOUR NAME", email="your.email@example.com" }, # *** UPDATE THIS ***
+]
+description = "Metabolite and Expressed RNA Cross-modality Analysis Tool package."
+readme = "README.md"
+requires-python = ">=3.8"
+license = { file = "LICENSE" } # Add a LICENSE file (e.g., MIT)
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License", # Or your chosen license
+    "Operating System :: OS Independent",
+    "Topic :: Scientific/Engineering :: Bio-Informatics",
+]
+# List ALL libraries imported in your .py files
+dependencies = [
+    "pandas>=1.3",
+    "numpy>=1.21",
+    "matplotlib>=3.4",
+    "seaborn>=0.11",
+    "scikit-learn>=1.0",
+    "scipy",
+    "statsmodels", # For p-value adjustment
+    "adjustText",  # For volcano plot labels
+    # Add tensorflow and torch if used for analysis, otherwise remove
+    # "tensorflow",
+    # "torch",
+]
+
+# Optional: For development/testing
+# [project.optional-dependencies]
+# dev = ["pytest", "build", "twine"]
+
+[project.urls]
+"Homepage" = "" # Optional: Add GitHub URL later
+"Bug Tracker" = "" # Optional: Add GitHub Issues URL later
