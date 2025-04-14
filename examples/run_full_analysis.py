@@ -26,6 +26,8 @@ OUTPUT_RESULTS_SUBDIR = 'output_results'
 # ==================================================
 
 
+
+
 # --- 1. Setup Paths ---
 print("--- 1. Setting up Paths ---")
 input_data_path = os.path.abspath(os.path.join(BASE_PROJECT_PATH, INPUT_DATA_SUBDIR))
@@ -38,21 +40,36 @@ print(f"Output Results will be saved under: {paths['base']}")
 save_files = True
 
 
+
+
+
+
+
+
+
+
+
 # --- 2. Load Data ---
 print("\n--- 2. Loading Data ---")
 loaded_metabolite_data = load_data.load_metabolite_files(paths['input_metabolites'])
 loaded_rna_data = load_data.load_rna_files(paths['input_rna'], rows_are_genes=True)
 external_rna_metadata_df = load_data.load_external_rna_metadata(paths['input_rna_metadata'])
 # --- Exit if critical data failed ---
-critical_data_missing = False
-if not loaded_metabolite_data: print("CRITICAL ERROR: No metabolite data."); critical_data_missing = True
-if not loaded_rna_data: print("CRITICAL ERROR: No RNA counts."); critical_data_missing = True
-if external_rna_metadata_df is None: print("CRITICAL ERROR: External RNA metadata failed load."); critical_data_missing = True
-if critical_data_missing: print("Exiting."); sys.exit(1)
+# critical_data_missing = False
+# if not loaded_metabolite_data: print("CRITICAL ERROR: No metabolite data."); critical_data_missing = True
+# if not loaded_rna_data: print("CRITICAL ERROR: No RNA counts."); critical_data_missing = True
+# if external_rna_metadata_df is None: print("CRITICAL ERROR: External RNA metadata failed load."); critical_data_missing = True
+# if critical_data_missing: print("Exiting."); sys.exit(1)
+
+
+
+
+
+
+
 
 
 # --- 3. Preprocess Metabolites ---
-print("\n--- 3. Preprocessing Metabolites ---")
 metabolite_features = None # Features indexed by original_rna_sample_id
 metabolite_metadata = None # Metadata indexed by original_rna_sample_id
 metabolite_combined_raw = preprocess.combine_dataframes(loaded_metabolite_data, axis=0)
@@ -74,6 +91,14 @@ if metabolite_combined_raw is not None:
                   try: metabolite_metadata.to_csv(meta_extract_path, index=True); print(f"Saved metabolite METADATA to {meta_extract_path}")
                   except Exception as e: print(f"Warning: Could not save metabolite metadata: {e}")
 else: print("Skipping metabolite preprocessing - no combined raw data.")
+
+
+
+
+
+
+
+
 
 
 # --- 4. Preprocess RNA ---
@@ -121,6 +146,20 @@ if rna_combined_features is not None:
 else: print("Skipping RNA normalization - combined RNA features invalid or missing.")
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+# --- 5. Aligning Samples ---
 print("\n--- 5. Aligning Samples ---")
 metabolite_matched = None; rna_matched = None
 
@@ -186,7 +225,12 @@ else:
 
 
 
-    
+
+
+
+
+
+
 # --- 6. Variance Filtering ---
 print("\n--- 6. Variance Filtering ---")
 # Inputs are metabolite_matched, rna_matched (indexed by original_rna_sample_id)
