@@ -38,90 +38,73 @@ def combine_dataframes(df_dict, axis=0, join='outer'):
     except Exception as e: print(f"Error during concatenation: {e}"); return None
 
 
-# --- clean_metabolite_data function ---
 def clean_metabolite_data(combined_df):
-    """Basic cleaning: averages duplicate samples (based on 'original_rna_sample_id'),
-       separates metadata, cleans features, filters samples,
-       and sets index using 'original_rna_sample_id'.
-       Returns:
-           df_features_indexed (DataFrame): Numeric features indexed by original_rna_sample_id.
-           metadata_df_indexed (DataFrame): Metadata indexed by original_rna_sample_id.
+    """Cleans combined metabolite data, averages duplicates, separates metadata/features,
+       filters samples, and sets index using the SHORT version of 'original_rna_sample_id'.
     """
     print("\n--- Cleaning Combined Metabolite Data ---")
     if combined_df is None or combined_df.empty: return None, None
     df_cleaned = combined_df.copy(); metadata_df_final = None; df_features_only = None; index_set_successfully = False
-
-    INDEX_COL_NAME = 'original_rna_sample_id' # This column MUST exist in combined_df
+    RAW_ID_COL_NAME = 'original_rna_sample_id'
+    FINAL_INDEX_NAME = 'original_rna_sample_id' # Keep the final desired name
 
     try:
-        if INDEX_COL_NAME not in df_cleaned.columns:
-             raise ValueError(f"Crucial column '{INDEX_COL_NAME}' not found in combined metabolite data.")
+        if RAW_ID_COL_NAME not in df_cleaned.columns: raise ValueError(f"Column '{RAW_ID_COL_NAME}' not found.")
 
-        # --- Handle Duplicates by Averaging Features ---
-        print(f"Checking for duplicates in '{INDEX_COL_NAME}' column...")
-        df_cleaned[INDEX_COL_NAME] = clean_index(df_cleaned[INDEX_COL_NAME]) # Clean the ID column first
-        duplicates_present = df_cleaned[INDEX_COL_NAME].duplicated().any()
-        index_is_unique = False # Assume not unique initially if duplicates found
+        # --- Create SHORT sample ID (without prefix) FIRST ---
+        print(f"Extracting short sample ID from '{RAW_ID_COL_NAME}'...")
+        short_id_series = df_cleaned[RAW_ID_COL_NAME].astype(str).str.extract(r'(?:mc\d+_)?(.*)', expand=False)
+        short_id_series = clean_index(short_id_series) # Clean the extracted short ID
+        SHORT_ID_COL_TEMP = 'short_sample_id_temp' # Temporary column name
+        df_cleaned[SHORT_ID_COL_TEMP] = short_id_series
+
+        # --- Handle Duplicates based on the SHORT ID ---
+        print(f"Checking for duplicates in generated short sample ID...")
+        duplicates_present = df_cleaned[SHORT_ID_COL_TEMP].duplicated().any()
+        index_is_unique = False
 
         if duplicates_present:
-            print(f"  Duplicates found in '{INDEX_COL_NAME}'. Averaging numeric features...")
-            # Identify numeric feature columns BEFORE grouping
-            feature_cols_initial, non_feature_cols_initial = identify_metabolite_columns(df_cleaned.columns, METABOLITE_ID_PREFIXES, METABOLITE_ID_SUFFIX_REGEX)
+            print(f"  Duplicates found in short ID. Averaging numeric features...")
+            feature_cols_initial, non_feature_cols_initial = identify_metabolite_columns(df_cleaned.columns.drop(SHORT_ID_COL_TEMP), METABOLITE_ID_PREFIXES, METABOLITE_ID_SUFFIX_REGEX)
             numeric_feature_cols = df_cleaned[feature_cols_initial].select_dtypes(include=np.number).columns.tolist()
-            # Grouping columns: The unique ID + any other metadata to keep 'first'
-            metadata_cols_to_keep = [col for col in non_feature_cols_initial if col != INDEX_COL_NAME and col in df_cleaned.columns]
-            # Make sure metadata columns are strings before 'first' aggregation if needed
-            for col in metadata_cols_to_keep:
-                 if not pd.api.types.is_numeric_dtype(df_cleaned[col]):
-                      df_cleaned[col] = df_cleaned[col].astype(str)
-
-            agg_dict = {**{col: 'first' for col in metadata_cols_to_keep},
-                        **{col: 'mean' for col in numeric_feature_cols}}
-
-            # Perform grouping
-            df_grouped = df_cleaned.groupby(INDEX_COL_NAME).agg(agg_dict)
-            # Check if grouping resulted in an empty dataframe (unlikely but possible)
-            if df_grouped.empty: raise ValueError("Grouping by ID resulted in an empty DataFrame.")
-            # Check for duplicates in the NEW index (should not happen after groupby)
-            if df_grouped.index.duplicated().any(): raise ValueError("Duplicates STILL EXIST after averaging! Check grouping columns/logic.")
-
-            df_cleaned = df_grouped.reset_index() # Bring ID back as column for rest of processing
-            print(f"  Shape after averaging duplicates: {df_cleaned.shape}")
-            index_is_unique = True # Should be unique now
+            metadata_cols_to_keep = [col for col in non_feature_cols_initial if col in df_cleaned.columns] # Keep original metadata cols
+            # Group by the SHORT ID now
+            grouping_cols = [SHORT_ID_COL_TEMP] + metadata_cols_to_keep
+            agg_dict = {**{col: 'first' for col in metadata_cols_to_keep}, **{col: 'mean' for col in numeric_feature_cols}}
+            # Group by the short ID, keep first metadata, average numeric
+            df_grouped = df_cleaned.groupby(SHORT_ID_COL_TEMP).agg(agg_dict)
+            if df_grouped.index.duplicated().any(): raise ValueError("Duplicates remain after averaging!")
+            df_cleaned = df_grouped.reset_index() # SHORT_ID_COL_TEMP becomes a column again
+            print(f"  Shape after averaging duplicates based on short ID: {df_cleaned.shape}")
+            index_is_unique = True
         else:
-            print(f"  Values in '{INDEX_COL_NAME}' column are unique.")
-            index_is_unique = True # Already unique
+            print(f"  Values based on short sample ID are unique.")
+            index_is_unique = True # Already unique based on short ID
 
         # --- Continue with cleaning on the (potentially averaged) df_cleaned ---
+        # (Identify features, Convert numeric, Drop NaNs - as before)
         all_cols = df_cleaned.columns.tolist()
         metabolite_feature_cols, non_metabolite_cols = identify_metabolite_columns(all_cols, METABOLITE_ID_PREFIXES, METABOLITE_ID_SUFFIX_REGEX)
-        metadata_cols_present = sorted(list(set([col for col in non_metabolite_cols if col != INDEX_COL_NAME] + [METADATA_SAMPLE_COL])))
-        metadata_cols_present = [col for col in metadata_cols_present if col in df_cleaned.columns] # Ensure they exist
-
-        print("Converting features to numeric (post-averaging check)...")
+        potential_metadata_cols = list(set([col for col in non_metabolite_cols if col != SHORT_ID_COL_TEMP] + [METADATA_SAMPLE_COL])) # Use temp col name
+        metadata_cols_present = [col for col in potential_metadata_cols if col in df_cleaned.columns]
         feature_cols_present = [col for col in metabolite_feature_cols if col in df_cleaned.columns]
-        if not feature_cols_present: print("Warning: No metabolite features remaining."); df_numeric_features = pd.DataFrame(index=df_cleaned.index)
-        else:
+        if feature_cols_present:
             df_features = df_cleaned[feature_cols_present].copy()
-            for col in feature_cols_present: # Convert again if averaging created non-numeric
-                if not pd.api.types.is_numeric_dtype(df_features[col]): df_features[col] = pd.to_numeric(df_features[col], errors='coerce')
+            for col in feature_cols_present:
+                 if not pd.api.types.is_numeric_dtype(df_features[col]): df_features[col] = pd.to_numeric(df_features[col], errors='coerce')
             numeric_feature_cols = df_features.select_dtypes(include=np.number).columns.tolist()
             df_numeric_features = df_features[numeric_feature_cols].copy()
-            print(f"Kept {len(numeric_feature_cols)} numeric feature columns.")
             nan_feature_cols = [col for col in numeric_feature_cols if df_numeric_features[col].isnull().all()]
             if nan_feature_cols: df_numeric_features.drop(columns=nan_feature_cols, inplace=True); print(f"Dropped {len(nan_feature_cols)} all-NaN features.")
+        else: df_numeric_features = pd.DataFrame(index=df_cleaned.index)
 
         # Prepare for sample filtering (re-attach relevant metadata)
-        # Use the ID column to align indices before merging
-        cols_for_meta_df = [INDEX_COL_NAME] + metadata_cols_present
-        metadata_df = df_cleaned[cols_for_meta_df].set_index(INDEX_COL_NAME) # Index meta by ID
-        df_numeric_features[INDEX_COL_NAME] = df_cleaned[INDEX_COL_NAME] # Ensure ID col exists
-        df_numeric_features = df_numeric_features.set_index(INDEX_COL_NAME) # Index features by ID
-        # Use inner join to ensure alignment and drop samples missing in either part after averaging/cleaning
-        df_to_filter = pd.merge(metadata_df, df_numeric_features, left_index=True, right_index=True, how='inner')
-        print(f"Re-merged metadata and numeric features. Shape: {df_to_filter.shape}")
+        cols_for_meta_df = [SHORT_ID_COL_TEMP] + metadata_cols_present # Use temp col name
+        metadata_df = df_cleaned[cols_for_meta_df].copy()
+        df_numeric_features.index = metadata_df.index # Align indices before merge
+        df_to_filter = pd.merge(metadata_df, df_numeric_features, left_index=True, right_index=True, how='left')
 
-
+        # Filter out QC/Blank samples
         print("Filtering out QC/Blank samples...")
         df_filtered = df_to_filter
         if METADATA_SAMPLE_COL in df_filtered.columns:
@@ -132,24 +115,32 @@ def clean_metabolite_data(combined_df):
             print(f"Filtered {rows_before - len(df_filtered)} QC/Blank rows. Shape now: {df_filtered.shape}")
         if df_filtered.empty: print("Warning: DataFrame empty after filtering."); return pd.DataFrame(), pd.DataFrame()
 
-        # Final separation (index is now original_rna_sample_id)
+        # Separate final metadata and features AGAIN
         final_metadata_cols = [col for col in metadata_cols_present if col in df_filtered.columns]
-        metadata_df_final = df_filtered[final_metadata_cols].copy()
-        final_feature_cols = [col for col in df_filtered.columns if col not in final_metadata_cols]
+        metadata_df_final = df_filtered[[SHORT_ID_COL_TEMP] + final_metadata_cols].copy() # Keep temp ID col
+        final_feature_cols = [col for col in df_filtered.columns if col not in final_metadata_cols and col != SHORT_ID_COL_TEMP]
         df_features_only = df_filtered[final_feature_cols].copy()
+        df_features_only[SHORT_ID_COL_TEMP] = df_filtered[SHORT_ID_COL_TEMP] # Add temp ID col
         print(f"Separated final Metadata ({metadata_df_final.shape}) and Features ({df_features_only.shape})")
 
-        # Confirm index name
-        df_features_only.index.name = INDEX_COL_NAME
-        metadata_df_final.index.name = INDEX_COL_NAME
-        index_set_successfully = True
-        print(f"Index '{INDEX_COL_NAME}' confirmed on output DataFrames.")
+        # Set index using the SHORT sample ID IF IT WAS UNIQUE
+        if index_is_unique:
+             print(f"Setting index to the derived short sample ID ('{FINAL_INDEX_NAME}')...")
+             try:
+                  metadata_df_final = metadata_df_final.set_index(SHORT_ID_COL_TEMP)
+                  df_features_only = df_features_only.set_index(SHORT_ID_COL_TEMP)
+                  metadata_df_final.index.name = FINAL_INDEX_NAME # Use the desired final name
+                  df_features_only.index.name = FINAL_INDEX_NAME # Use the desired final name
+                  index_set_successfully = True; print("Index set successfully.")
+             except Exception as e_index: print(f"ERROR setting index: {e_index}"); index_set_successfully = False
+        else: print(f"Skipping setting index due to duplicate short IDs generated earlier."); index_set_successfully = False
 
     except Exception as e_clean: print(f"ERROR during metabolite cleaning: {e_clean}"); return None, None
 
     print("Metabolite cleaning finished.")
-    # Return features and metadata indexed by original_rna_sample_id
-    return df_features_only, metadata_df_final
+    if index_set_successfully: return df_features_only, metadata_df_final
+    else: print("Warning: Returning metabolite data without index set."); return df_features_only, metadata_df_final
+
 
 
 # --- process_rna_dataframe function ---
