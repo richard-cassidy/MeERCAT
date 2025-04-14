@@ -1,4 +1,4 @@
-# Example Script using the MeERCAT package (Local File Version - Updated for Preprocess Refactor)
+# Example Script using the MeERCAT package (Local File Version - Applying Preprocess Refactor)
 
 import pandas as pd
 import numpy as np
@@ -28,7 +28,7 @@ try:
     from meercat import config
     from meercat import utils
     from meercat import load_data
-    from meercat import preprocess # This now contains the refactored functions
+    from meercat import preprocess # Uses the refactored preprocess module
     from meercat import analysis
     from meercat import postprocess
     from meercat import visualize
@@ -61,7 +61,7 @@ output_results_path = os.path.abspath(os.path.join(BASE_PROJECT_PATH, OUTPUT_RES
 # Use the setup_paths utility from the package to create output structure
 paths = utils.setup_paths(
     output_results_path, # Base path for *outputs*
-    '',                  # Project folder name within output (use empty)
+    config.DEFAULT_PROJECT_FOLDER, # Project folder name within output (can be '')
     config.DEFAULT_SPEARMAN_SUBFOLDER,
     config.DEFAULT_NMF_SUBFOLDER,
     config.DEFAULT_PLOTS_SUBFOLDER # This is relative within spearman/nmf folders
@@ -71,15 +71,13 @@ paths['input'] = input_data_path
 paths['input_metabolites'] = os.path.join(input_data_path, 'metabolites')
 paths['input_rna'] = os.path.join(input_data_path, 'rna')
 # *** Define path for the NEW required RNA metadata file ***
-paths['input_rna_metadata'] = os.path.join(input_data_path, 'rna_metadata.csv') # Needs to exist!
-# Optional main metadata file (not currently used in this script)
-# paths['input_metadata'] = os.path.join(input_data_path, 'metadata.csv')
+paths['input_rna_metadata'] = os.path.join(input_data_path, config.RNA_METADATA_FILENAME) # Use config
 
 print(f"\nInput Data expected in: {paths['input']}")
 print(f"  (Metabolites in: {paths['input_metabolites']})")
 print(f"  (RNA counts in: {paths['input_rna']})")
 print(f"  (RNA metadata in: {paths['input_rna_metadata']})")
-print(f"Output Results will be saved under: {output_results_path}")
+print(f"Output Results will be saved under: {paths['base']}")
 print(f"  Spearman Results: {paths['spearman']}")
 print(f"  NMF Results: {paths['nmf']}")
 print(f"  Spearman Plots: {paths['spearman_plots']}")
@@ -92,31 +90,21 @@ save_files = True # Set to False to only run analysis in memory
 # --- 2. Load Data ---
 print("\n--- 2. Loading Data ---")
 # --- Load Metabolites ---
-if not os.path.isdir(paths['input_metabolites']):
-     print(f"ERROR: Metabolite input directory not found: {paths['input_metabolites']}")
-     loaded_metabolite_data = {}
-else:
-     metabolite_file_dict = {f: os.path.join(paths['input_metabolites'], f)
-                              for f in os.listdir(paths['input_metabolites']) if f.lower().endswith('.csv')}
-     loaded_metabolite_data = load_data.load_metabolite_files(metabolite_file_dict)
-     if not loaded_metabolite_data: print("ERROR: No metabolite files loaded.")
+loaded_metabolite_data = load_data.load_metabolite_files(paths['input_metabolites'])
 
 # --- Load RNA Counts ---
-if not os.path.isdir(paths['input_rna']):
-     print(f"ERROR: RNA input directory not found: {paths['input_rna']}")
-     loaded_rna_data = {}
-else:
-     rna_file_dict = {f: os.path.join(paths['input_rna'], f)
-                       for f in os.listdir(paths['input_rna']) if f.lower().endswith('.csv')}
-     # *** IMPORTANT: Set rows_are_genes correctly for your data format ***
-     loaded_rna_data = load_data.load_rna_files(rna_file_dict, rows_are_genes=True)
-     if not loaded_rna_data: print("ERROR: No RNA files loaded.")
+# *** IMPORTANT: Set rows_are_genes correctly for your data format ***
+loaded_rna_data = load_data.load_rna_files(paths['input_rna'], rows_are_genes=True)
 
 # --- Load External RNA Metadata ---
 external_rna_metadata_df = load_data.load_external_rna_metadata(paths['input_rna_metadata'])
-if external_rna_metadata_df is None:
-    print("ERROR: Cannot proceed without external RNA metadata file. Please create 'rna_metadata.csv'.")
-    sys.exit(1) # Exit if essential metadata is missing
+
+# --- Exit if critical data failed to load ---
+critical_data_missing = False
+if not loaded_metabolite_data: print("CRITICAL ERROR: No metabolite data files loaded."); critical_data_missing = True
+if not loaded_rna_data: print("CRITICAL ERROR: No RNA count files loaded."); critical_data_missing = True
+if external_rna_metadata_df is None: print("CRITICAL ERROR: External RNA metadata failed to load."); critical_data_missing = True
+if critical_data_missing: print("Exiting due to missing critical input data."); sys.exit(1)
 
 
 # --- 3. Preprocess Metabolites ---
@@ -126,24 +114,24 @@ metabolite_metadata = None # Will hold metadata with composite index
 
 metabolite_combined_raw = preprocess.combine_dataframes(loaded_metabolite_data, axis=0)
 if metabolite_combined_raw is not None:
-    # *** UPDATED: Capture both returned dataframes ***
+    # Capture both returned dataframes from the refactored function
     metabolite_features, metabolite_metadata = preprocess.clean_metabolite_data(metabolite_combined_raw)
 
     # Save cleaned data (optional intermediate step)
     if metabolite_features is not None and save_files:
         metab_feat_path = os.path.join(paths['base'], config.METABOLITE_CLEANED_FILENAME)
-        try:
-            metabolite_features.to_csv(metab_feat_path, index=True)
-            print(f"Saved cleaned metabolite FEATURES to {metab_feat_path}")
+        try: metabolite_features.to_csv(metab_feat_path, index=True); print(f"Saved cleaned metabolite FEATURES to {metab_feat_path}")
         except Exception as e: print(f"Warning: Could not save cleaned metabolite features: {e}")
     if metabolite_metadata is not None and save_files:
         meta_extract_path = os.path.join(paths['base'], config.METADATA_EXTRACTED_FILENAME)
-        try:
-            metabolite_metadata.to_csv(meta_extract_path, index=True)
-            print(f"Saved extracted metabolite METADATA to {meta_extract_path}")
+        try: metabolite_metadata.to_csv(meta_extract_path, index=True); print(f"Saved extracted metabolite METADATA to {meta_extract_path}")
         except Exception as e: print(f"Warning: Could not save extracted metabolite metadata: {e}")
-else:
-    print("Skipping metabolite preprocessing - no combined raw data.")
+else: print("Skipping metabolite preprocessing - no combined raw data.")
+
+# Check if metabolite preprocessing succeeded before continuing
+if metabolite_features is None:
+     print("ERROR: Metabolite preprocessing failed. Cannot proceed.")
+     # sys.exit(1) # Optional exit
 
 
 # --- 4. Preprocess RNA ---
@@ -151,67 +139,76 @@ print("\n--- 4. Preprocessing RNA ---")
 rna_normalized = None      # Will hold final normalized features with composite index
 rna_metadata_final = None  # Will hold final RNA metadata with composite index
 rna_features_indexed = None # Intermediate step: Features with composite index
+processed_rna_features_dict = {}
 
-processed_rna_features_dict = {} # Store features only (indexed by original ID)
-
-if loaded_rna_data: # Check if dict has content
+if loaded_rna_data:
     for name, df_raw in loaded_rna_data.items():
-        # process_rna_dataframe now ONLY returns features indexed by original sample ID
-        features_df = preprocess.process_rna_dataframe(df_raw, name, rows_are_genes=True) # Set rows_are_genes correctly
-        if features_df is not None:
-            processed_rna_features_dict[name] = features_df
+        # process_rna_dataframe returns features indexed by original sample ID
+        features_df = preprocess.process_rna_dataframe(df_raw, name, rows_are_genes=True)
+        if features_df is not None: processed_rna_features_dict[name] = features_df
 
 # Combine FEATURES ONLY
 rna_combined_features = preprocess.combine_dataframes(processed_rna_features_dict, axis=0, join='outer')
 
 # Merge Features with External Metadata
-rna_merged_data = None # Will hold features + metadata, indexed by original ID
+rna_merged_data = None # Features + Metadata, indexed by original_rna_sample_id
 if rna_combined_features is not None and external_rna_metadata_df is not None:
     print("\nMerging combined RNA features with external metadata...")
     try:
-        # Ensure indices are aligned before merge
         common_rna_ids = rna_combined_features.index.intersection(external_rna_metadata_df.index)
         if len(common_rna_ids) == 0: raise ValueError("No common IDs between combined RNA features and external metadata!")
         print(f"Found {len(common_rna_ids)} matching RNA sample IDs for metadata merge.")
-
         rna_combined_features_common = rna_combined_features.loc[common_rna_ids]
         external_rna_metadata_common = external_rna_metadata_df.reindex(common_rna_ids) # Align metadata index
-
+        # Use suffixes to prevent column name collisions during merge
         rna_merged_data = pd.merge(rna_combined_features_common, external_rna_metadata_common,
-                                   left_index=True, right_index=True, how='left')
+                                   left_index=True, right_index=True, how='left', suffixes=('_feat', '_meta'))
         print(f"Shape after merging RNA features and metadata: {rna_merged_data.shape}")
+    except Exception as e_merge: print(f"Error merging RNA features and metadata: {e_merge}")
 
-    except Exception as e_merge:
-        print(f"Error merging RNA features and metadata: {e_merge}")
-
-# Create Composite Index on Merged RNA Data
+# Create Composite Index on Merged RNA Data & Separate
 if rna_merged_data is not None:
     print("\nCreating composite index for merged RNA data...")
-    # Use the _create_composite_id helper (it's internal to preprocess but called via clean_metabolite_data)
-    # We need similar logic here or call the helper explicitly if made public/refactored
-    # Replicating logic for now:
-    composite_id_series_rna = preprocess._create_composite_id(rna_merged_data, config.METADATA_COMPOSITE_ID_COLS)
+    # *** Call the helper function from preprocess module ***
+    composite_id_series_rna = preprocess._create_composite_id(
+        rna_merged_data,
+        config.METADATA_COMPOSITE_ID_COLS # Use the config list
+        # Assumes experiment_id is present as a column after merge
+    )
 
     if composite_id_series_rna is not None:
          if composite_id_series_rna.duplicated().any():
              print("CRITICAL WARNING: Duplicate composite IDs generated for RNA AFTER merge! Check metadata file content.")
          else:
              print("RNA composite ID unique. Setting index and separating features/metadata...")
-             # Set index on the merged data first
-             rna_merged_data.index = preprocess.clean_index(composite_id_series_rna)
-             rna_merged_data.index.name = 'composite_sample_id'
-             # Separate features using known feature names (important!)
-             feature_cols_rna = rna_combined_features.columns # Use columns from before merge
-             rna_features_indexed = rna_merged_data[feature_cols_rna].copy()
-             # Separate metadata
-             metadata_cols_rna = external_rna_metadata_df.columns.tolist() # Get original metadata cols
-             # Add experiment_id if it wasn't in external file but was generated by file loading
-             if 'experiment_id' in rna_merged_data.columns and 'experiment_id' not in metadata_cols_rna:
-                  metadata_cols_rna.append('experiment_id')
-             # Get metadata columns actually present in merged data after indexing
-             final_rna_meta_cols = [col for col in metadata_cols_rna if col in rna_merged_data.columns]
-             rna_metadata_final = rna_merged_data[final_rna_meta_cols].copy()
-             print(f"Set composite index. RNA Features shape: {rna_features_indexed.shape}, RNA Metadata shape: {rna_metadata_final.shape}")
+             try:
+                 # Set index on the merged data first
+                 rna_merged_data.index = preprocess.clean_index(composite_id_series_rna) # Use clean_index from preprocess (via load_data import)
+                 rna_merged_data.index.name = 'composite_sample_id'
+
+                 # Separate features using original feature names (handle potential suffixes)
+                 feature_cols_rna = rna_combined_features.columns # Columns from before merge
+                 actual_feature_cols = [f"{col}_feat" if f"{col}_feat" in rna_merged_data.columns else col for col in feature_cols_rna if f"{col}_feat" in rna_merged_data.columns or col in rna_merged_data.columns]
+                 if not actual_feature_cols: raise ValueError("Could not find original feature columns after merge!")
+                 rna_features_indexed = rna_merged_data[actual_feature_cols].copy()
+                 rna_features_indexed.columns = [col.replace('_feat','') for col in rna_features_indexed.columns] # Rename back
+
+                 # Separate final metadata (handle potential suffixes)
+                 metadata_cols_rna = external_rna_metadata_df.columns.tolist()
+                 if 'experiment_id' in rna_merged_data.columns and 'experiment_id' not in metadata_cols_rna:
+                      metadata_cols_rna.append('experiment_id')
+                 final_rna_meta_cols = [col for col in metadata_cols_rna if col in rna_merged_data.columns or f"{col}_meta" in rna_merged_data.columns]
+                 final_rna_meta_cols_adjusted = [f"{col}_meta" if f"{col}_meta" in rna_merged_data.columns else col for col in final_rna_meta_cols]
+                 if not final_rna_meta_cols_adjusted: raise ValueError("Could not find metadata columns after merge!")
+                 rna_metadata_final = rna_merged_data[final_rna_meta_cols_adjusted].copy()
+                 rna_metadata_final.columns = [col.replace('_meta','') for col in rna_metadata_final.columns] # Rename back
+
+                 print(f"Set composite index. RNA Features shape: {rna_features_indexed.shape}, RNA Metadata shape: {rna_metadata_final.shape}")
+
+             except Exception as e_sep:
+                 print(f"Error during index setting or feature/metadata separation for RNA: {e_sep}")
+                 rna_features_indexed = None # Invalidate on error
+                 rna_metadata_final = None
     else:
          print("Failed to create composite ID for merged RNA data.")
 
@@ -230,33 +227,36 @@ if rna_features_indexed is not None:
     #     rna_meta_final_path = os.path.join(paths['base'], 'rna_metadata_final_indexed.csv')
     #     rna_metadata_final.to_csv(rna_meta_final_path, index=True)
     #     print(f"Saved final RNA METADATA to {rna_meta_final_path}")
-
 else:
     print("Skipping RNA normalization - indexed RNA features not available.")
 
 
 # --- 5. Align Samples ---
 print("\n--- 5. Aligning Samples ---")
-# *** Use the FEATURE dataframes for alignment ***
-metabolite_matched, rna_matched = preprocess.align_samples(
-    metabolite_features, # Use features output from step 3 (with composite index)
-    rna_normalized,      # Use normalized features output from step 4 (with composite index)
-    df1_name="Metabolites", df2_name="RNA"
-)
-# Save matched FEATURE data
-if metabolite_matched is not None and rna_matched is not None:
-    print(f"Alignment successful. Matched {len(metabolite_matched)} samples.")
-    if save_files:
-         metab_match_path = os.path.join(paths['base'], config.MATCHED_METABOLITE_FILENAME)
-         rna_match_path = os.path.join(paths['base'], config.MATCHED_RNA_FILENAME)
-         try:
-             metabolite_matched.to_csv(metab_match_path, index=True)
-             rna_matched.to_csv(rna_match_path, index=True)
-             print(f"Saved matched FEATURE data to {paths['base']}")
-         except Exception as e: print(f"Warning: Could not save matched data: {e}")
+# Use the FEATURE dataframes with composite IDs for alignment
+if metabolite_features is not None and rna_normalized is not None: # Check inputs exist
+    metabolite_matched, rna_matched = preprocess.align_samples(
+        metabolite_features, # Use features output from step 3 (with composite index)
+        rna_normalized,      # Use normalized features output from step 4 (with composite index)
+        df1_name="Metabolites", df2_name="RNA"
+    )
+    # Save matched FEATURE data
+    if metabolite_matched is not None and rna_matched is not None:
+        print(f"Alignment successful. Matched {len(metabolite_matched)} samples.")
+        if save_files:
+             metab_match_path = os.path.join(paths['base'], config.MATCHED_METABOLITE_FILENAME)
+             rna_match_path = os.path.join(paths['base'], config.MATCHED_RNA_FILENAME)
+             try:
+                 metabolite_matched.to_csv(metab_match_path, index=True)
+                 rna_matched.to_csv(rna_match_path, index=True)
+                 print(f"Saved matched FEATURE data to {paths['base']}")
+             except Exception as e: print(f"Warning: Could not save matched data: {e}")
+    else:
+         print("ERROR: Sample alignment failed. Cannot proceed.")
+         sys.exit(1)
 else:
-     print("ERROR: Sample alignment failed. Cannot proceed with downstream analysis.")
-     sys.exit(1) # Exit if alignment failed
+    print("Skipping Alignment: Preprocessed metabolite or RNA features missing.")
+    sys.exit(1)
 
 
 # --- 6. Variance Filtering ---
@@ -356,12 +356,12 @@ for k_to_run in k_values_to_test:
 
         # Evaluate NMF results
         print(f"\n--- Evaluating NMF k={k_to_run} ---")
-        # Evaluation function needs the results components and original (filtered) data for V recalc
+        # Pass original filtered data FOR V RECALCULATION inside evaluate_nmf
         evaluation_metrics = visualize.evaluate_nmf(
             nmf_results["H_df"],
             nmf_results["W_rna_df"],
             nmf_results["W_metab_df"],
-            rna_data_filtered=rna_data_filtered, # Pass original filtered data for V recalc
+            rna_data_filtered=rna_data_filtered, # Pass original filtered data
             metabolite_data_filtered=metabolite_data_filtered,
             model=nmf_results["model"],
             k=k_to_run,
@@ -374,8 +374,8 @@ for k_to_run in k_values_to_test:
     else:
         print(f"NMF analysis failed for k={k_to_run}.")
 
-# --- Post-NMF Evaluation (Example: Plot Reconstruction Error) ---
-# *** Initialize lists BEFORE the 'if' check ***
+# --- Post-NMF Evaluation Plot ---
+# Initialize lists BEFORE the 'if' check
 k_vals = []
 recon_errors = []
 relative_errors = []
@@ -427,11 +427,9 @@ if all_nmf_metrics: # Check if the dictionary has entries
 
          plt.title('NMF Reconstruction Error vs. Number of Components (k)')
          # Set x-axis ticks explicitly to integer k values if possible
-         # Use k_vals used for plotting, which is plot_k_recon here
-         ax1.set_xticks(plot_k_recon if plot_k_recon else k_vals) # Use the k's actually plotted if possible
+         ax1.set_xticks(plot_k_recon if plot_k_recon else k_vals)
          fig.tight_layout()
          # Save this plot too
-         # Use the correct plots path from the 'paths' dictionary
          plot_filename_k_eval = os.path.join(paths['nmf_plots'], "nmf_k_evaluation_recon_error.png")
          try:
              plt.savefig(plot_filename_k_eval, dpi=150, bbox_inches='tight')
@@ -443,7 +441,7 @@ if all_nmf_metrics: # Check if the dictionary has entries
          print("Could not plot reconstruction errors (no valid error values found in metrics dictionary).")
 
 else:
-    print("\nNo NMF evaluation metrics collected (NMF might have failed for all k or dictionary empty).") # Updated message
+    print("\nNo NMF evaluation metrics collected (NMF might have failed for all k or dictionary empty).")
 
 
 print("\n--- FULL ANALYSIS PIPELINE COMPLETE ---")
