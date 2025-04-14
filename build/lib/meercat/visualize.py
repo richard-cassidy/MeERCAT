@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import os
 
-from meercat.config import PLOT_HEATMAP_TOP_N_PAIRS
+from src.config import PLOT_HEATMAP_TOP_N_PAIRS
 try:
     from adjustText import adjust_text
     adjust_text_available = True

@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt # Often needed to manage plots
 # you might need to tell Python where to find it.
 # Adjust the path '../' if your script is not directly inside the 'examples' folder.
 try:
-    # Assumes the script is in a subdirectory (like 'examples')
+    # Assumes the script is in a subdirectory (like 'examples') relative to the package root
     package_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../'))
     if package_path not in sys.path:
         print(f"Adding package path: {package_path}")
@@ -24,7 +24,6 @@ except NameError:
 
 # Import functions from YOUR package
 try:
-    # *** UPDATED IMPORT STATEMENTS ***
     import meercat
     from meercat import config
     from meercat import utils
@@ -34,7 +33,7 @@ try:
     from meercat import postprocess
     from meercat import visualize
 except ImportError as e:
-     print(f"ERROR: Could not import the 'meercat' package.") # Updated name
+     print(f"ERROR: Could not import the 'meercat' package.")
      print(f"Ensure the package is installed (`pip install .` in the root directory)")
      print(f"or the path is correctly added to sys.path if running from source.")
      print(f"Import error details: {e}")
@@ -45,13 +44,10 @@ except ImportError as e:
 # ==================================================
 # --- Define Base Path for Input Data and Output Results ---
 # --- *** USER MUST SET THIS PATH *** ---
-# This is the main folder where 'input_data' lives and 'output_results' will be created.
-# Example: '/Users/yourname/Documents/MyMultiOmicsProject/' or 'C:/Users/yourname/MyProject/'
-# Use '.' for the current directory where the script is run.
-BASE_PROJECT_PATH = '.'
+BASE_PROJECT_PATH = '.' # Use '.' for the current directory
 
-# --- Define Subdirectory Names (can use defaults from config or customize) ---
-INPUT_DATA_SUBDIR = 'input_data'   # Expects subfolders 'metabolites', 'rna' inside this
+# --- Define Subdirectory Names ---
+INPUT_DATA_SUBDIR = 'input_data'   # Expects subfolders 'metabolites', 'rna', and 'metadata.csv' inside this
 OUTPUT_RESULTS_SUBDIR = 'output_results' # Where all analysis results will be saved
 # ==================================================
 
@@ -63,20 +59,18 @@ input_data_path = os.path.abspath(os.path.join(BASE_PROJECT_PATH, INPUT_DATA_SUB
 output_results_path = os.path.abspath(os.path.join(BASE_PROJECT_PATH, OUTPUT_RESULTS_SUBDIR))
 
 # Use the setup_paths utility from the package to create output structure
-# It uses defaults from config.py for subfolder names unless overridden
-# Pass the desired BASE output path
 paths = utils.setup_paths(
     output_results_path, # Base path for *outputs*
-    '',                  # Project folder name within output (use empty if base IS output folder)
+    '',                  # Project folder name within output (use empty)
     config.DEFAULT_SPEARMAN_SUBFOLDER,
     config.DEFAULT_NMF_SUBFOLDER,
-    config.DEFAULT_PLOTS_SUBFOLDER # This plots subfolder is relative inside spearman/nmf
+    config.DEFAULT_PLOTS_SUBFOLDER # This is relative within spearman/nmf folders
 )
 # Add specific input paths for clarity
 paths['input'] = input_data_path
 paths['input_metabolites'] = os.path.join(input_data_path, 'metabolites')
 paths['input_rna'] = os.path.join(input_data_path, 'rna')
-paths['input_metadata'] = os.path.join(input_data_path, 'metadata.csv') # Assumes metadata is here
+paths['input_metadata'] = os.path.join(input_data_path, 'metadata.csv') # Main metadata file (Optional)
 
 print(f"\nInput Data expected in: {paths['input']}")
 print(f"Output Results will be saved under: {output_results_path}")
@@ -91,87 +85,118 @@ save_files = True # Set to False to only run analysis in memory
 
 # --- 2. Load Data ---
 print("\n--- 2. Loading Data ---")
-# --- Load Metadata ---
-metadata_df = load_data.load_metadata(paths['input_metadata'])
-if metadata_df is None:
-     print("WARNING: Metadata failed to load. Some processing steps might be affected.")
-     # Decide whether to exit or continue without metadata if possible
-     # sys.exit(1)
+# --- Load Metadata (Optional, might be merged in raw data) ---
+# metadata_df = load_data.load_metadata(paths['input_metadata'])
+# if metadata_df is None:
+#      print("WARNING: Main metadata file not loaded. Assuming metadata is within data files.")
 
 # --- Load Metabolites ---
-# Check if metabolite input directory exists
 if not os.path.isdir(paths['input_metabolites']):
      print(f"ERROR: Metabolite input directory not found: {paths['input_metabolites']}")
-     loaded_metabolite_data = {} # Set to empty
+     loaded_metabolite_data = {}
 else:
      metabolite_file_dict = {f: os.path.join(paths['input_metabolites'], f)
                               for f in os.listdir(paths['input_metabolites']) if f.lower().endswith('.csv')}
      loaded_metabolite_data = load_data.load_metabolite_files(metabolite_file_dict)
      if not loaded_metabolite_data:
-          print("ERROR: No metabolite files loaded. Check directory contents and file formats.")
+          print("ERROR: No metabolite files loaded.")
+          # Decide how to handle this - exit or try to continue?
           # sys.exit(1)
 
 # --- Load RNA ---
 if not os.path.isdir(paths['input_rna']):
      print(f"ERROR: RNA input directory not found: {paths['input_rna']}")
-     loaded_rna_data = {} # Set to empty
+     loaded_rna_data = {}
 else:
      rna_file_dict = {f: os.path.join(paths['input_rna'], f)
-                       for f in os.listdir(paths['input_rna']) if f.lower().endswith('.csv')} # Adjust if needed
-     # *** IMPORTANT: Set rows_are_genes correctly for your data format ***
+                       for f in os.listdir(paths['input_rna']) if f.lower().endswith('.csv')}
+     # *** IMPORTANT: Set rows_are_genes correctly ***
      loaded_rna_data = load_data.load_rna_files(rna_file_dict, rows_are_genes=True)
      if not loaded_rna_data:
-          print("ERROR: No RNA files loaded. Check directory contents and file formats.")
+          print("ERROR: No RNA files loaded.")
+          # Decide how to handle this
           # sys.exit(1)
 
 
 # --- 3. Preprocess Metabolites ---
 print("\n--- 3. Preprocessing Metabolites ---")
-metabolite_cleaned_indexed = None
+metabolite_features = None # Will hold features-only data
+metabolite_metadata = None # Will hold extracted metadata
+
 metabolite_combined_raw = preprocess.combine_dataframes(loaded_metabolite_data, axis=0)
 if metabolite_combined_raw is not None:
-    metabolite_cleaned_indexed = preprocess.clean_metabolite_data(metabolite_combined_raw)
+    # *** UPDATED: Capture both returned dataframes ***
+    metabolite_features, metabolite_metadata = preprocess.clean_metabolite_data(metabolite_combined_raw)
+
     # Save cleaned data (optional intermediate step)
-    if metabolite_cleaned_indexed is not None and save_files:
+    if metabolite_features is not None and save_files:
+        # Save features (indexed)
         metab_clean_path = os.path.join(paths['base'], config.METABOLITE_CLEANED_FILENAME)
         try:
-            metabolite_cleaned_indexed.to_csv(metab_clean_path, index=True)
-            print(f"Saved cleaned metabolite data to {metab_clean_path}")
-        except Exception as e: print(f"Warning: Could not save cleaned metabolite data: {e}")
-else: print("Skipping metabolite preprocessing - no data loaded.")
+            metabolite_features.to_csv(metab_clean_path, index=True)
+            print(f"Saved cleaned metabolite FEATURES to {metab_clean_path}")
+        except Exception as e: print(f"Warning: Could not save cleaned metabolite features: {e}")
+    if metabolite_metadata is not None and save_files:
+         # Save metadata (indexed)
+         meta_extract_path = os.path.join(paths['base'], config.METADATA_EXTRACTED_FILENAME)
+         try:
+             metabolite_metadata.to_csv(meta_extract_path, index=True)
+             print(f"Saved extracted metabolite METADATA to {meta_extract_path}")
+         except Exception as e: print(f"Warning: Could not save extracted metabolite metadata: {e}")
+else:
+    print("Skipping metabolite preprocessing - no combined raw data.")
 
 
 # --- 4. Preprocess RNA ---
 print("\n--- 4. Preprocessing RNA ---")
-rna_normalized = None
-processed_rna_dict = {}
+rna_normalized = None # Will hold normalized features only
+rna_combined_metadata = None # Will hold combined RNA metadata
+
+processed_rna_features_dict = {} # Store features DFs
+processed_rna_metadata_dict = {} # Store metadata DFs
+
 if loaded_rna_data: # Check if dict has content
     for name, df_raw in loaded_rna_data.items():
-        # *** IMPORTANT: Set rows_are_genes correctly for your data format ***
-        processed_df = preprocess.process_rna_dataframe(df_raw, name, rows_are_genes=True)
-        if processed_df is not None:
-            processed_rna_dict[name] = processed_df
-rna_combined_processed = preprocess.combine_dataframes(processed_rna_dict, axis=0, join='outer')
-if rna_combined_processed is not None:
-    rna_normalized = preprocess.normalize_rna_data(rna_combined_processed)
-    # Save normalized data (optional intermediate step)
+        # *** UPDATED: Capture both returned dataframes ***
+        features_df, metadata_df = preprocess.process_rna_dataframe(df_raw, name, rows_are_genes=True) # Set rows_are_genes correctly
+        if features_df is not None:
+            processed_rna_features_dict[name] = features_df
+        if metadata_df is not None:
+            processed_rna_metadata_dict[name] = metadata_df
+
+# Combine FEATURES ONLY
+rna_combined_features = preprocess.combine_dataframes(processed_rna_features_dict, axis=0, join='outer')
+# Combine METADATA separately
+rna_combined_metadata = preprocess.combine_dataframes(processed_rna_metadata_dict, axis=0, join='outer') # Assumes metadata cols are compatible
+
+if rna_combined_features is not None:
+    # Normalize FEATURES ONLY
+    rna_normalized = preprocess.normalize_rna_data(rna_combined_features)
+    # Save normalized data
     if rna_normalized is not None and save_files:
          rna_norm_path = os.path.join(paths['base'], config.RNA_NORMALIZED_FILENAME)
          try:
              rna_normalized.to_csv(rna_norm_path, index=True)
-             print(f"Saved normalized RNA data to {rna_norm_path}")
+             print(f"Saved normalized RNA FEATURES to {rna_norm_path}")
          except Exception as e: print(f"Warning: Could not save normalized RNA data: {e}")
-else: print("Skipping RNA preprocessing - no data loaded.")
+    # Optionally save combined RNA metadata
+    # if rna_combined_metadata is not None and save_files:
+    #      rna_meta_path = os.path.join(paths['base'], 'rna_metadata_combined.csv')
+    #      rna_combined_metadata.to_csv(rna_meta_path, index=True)
+    #      print(f"Saved combined RNA metadata to {rna_meta_path}")
+else:
+    print("Skipping RNA preprocessing - no combined feature data.")
 
 
 # --- 5. Align Samples ---
 print("\n--- 5. Aligning Samples ---")
+# *** Use the FEATURE dataframes for alignment ***
 metabolite_matched, rna_matched = preprocess.align_samples(
-    metabolite_cleaned_indexed, # Use output from step 3
-    rna_normalized,             # Use output from step 4
+    metabolite_features, # Use features output from step 3
+    rna_normalized,      # Use normalized features output from step 4
     df1_name="Metabolites", df2_name="RNA"
 )
-# Save matched data
+# Save matched FEATURE data
 if metabolite_matched is not None and rna_matched is not None:
     print(f"Alignment successful. Matched {len(metabolite_matched)} samples.")
     if save_files:
@@ -180,15 +205,17 @@ if metabolite_matched is not None and rna_matched is not None:
          try:
              metabolite_matched.to_csv(metab_match_path, index=True)
              rna_matched.to_csv(rna_match_path, index=True)
-             print(f"Saved matched data to {paths['base']}")
+             print(f"Saved matched FEATURE data to {paths['base']}")
          except Exception as e: print(f"Warning: Could not save matched data: {e}")
 else:
      print("ERROR: Sample alignment failed. Cannot proceed with downstream analysis.")
-     sys.exit(1) # Exit if alignment failed
+     # Keep potentially useful unaligned data in memory for debugging? Or exit:
+     # sys.exit(1)
 
 
 # --- 6. Variance Filtering ---
 print("\n--- 6. Variance Filtering ---")
+# Filter the MATCHED feature dataframes
 rna_data_filtered = preprocess.apply_variance_filter(
     rna_matched, config.VAR_FILTER_TOP_N_GENES, "RNA"
 )
@@ -197,11 +224,13 @@ metabolite_data_filtered = preprocess.apply_variance_filter(
 )
 if rna_data_filtered is None or metabolite_data_filtered is None:
      print("ERROR: Variance filtering failed. Cannot proceed.")
-     sys.exit(1)
+     # Keep potentially useful unaligned data in memory for debugging? Or exit:
+     # sys.exit(1)
 
 
 # --- 7. Spearman Correlation ---
 print("\n--- 7. Spearman Correlation ---")
+# Run on the filtered feature dataframes
 df_corr_raw = analysis.run_spearman_correlation(rna_data_filtered, metabolite_data_filtered)
 # Save raw correlations
 if df_corr_raw is not None and save_files:
@@ -212,12 +241,13 @@ if df_corr_raw is not None and save_files:
      except Exception as e: print(f"Warning: Could not save raw correlation results: {e}")
 elif df_corr_raw is None:
      print("ERROR: Spearman correlation failed. Cannot proceed.")
-     sys.exit(1)
+     # Keep potentially useful unaligned data in memory for debugging? Or exit:
+     # sys.exit(1)
 
 
 # --- 8. P-value Adjustment ---
 print("\n--- 8. P-value Adjustment ---")
-df_corr_adj = postprocess.adjust_pvalues_bh(df_corr_raw)
+df_corr_adj = postprocess.adjust_pvalues_bh(df_corr_raw) # Takes raw results df
 # Save adjusted correlations
 if df_corr_adj is not None and save_files:
      corr_adj_path = os.path.join(paths['spearman'], config.CORRELATION_ADJ_FILENAME)
@@ -225,23 +255,23 @@ if df_corr_adj is not None and save_files:
          df_corr_adj.to_csv(corr_adj_path, index=False)
          print(f"Saved adjusted Spearman results to {corr_adj_path}")
      except Exception as e: print(f"Warning: Could not save adjusted correlation results: {e}")
-else:
-     print("ERROR: P-value adjustment failed. Correlation visualization might use raw p-values or fail.")
-     # df_corr_adj = df_corr_raw # Fallback to raw if needed
+elif df_corr_adj is None: # If adjustment itself failed
+     print("ERROR: P-value adjustment failed.")
+     df_corr_adj = df_corr_raw # Maybe fall back to raw for plotting if needed?
 
 
 # --- 9. Correlation Visualization ---
 print("\n--- 9. Correlation Visualization ---")
-if df_corr_adj is not None:
+if df_corr_adj is not None: # Use adjusted (or raw fallback) results
      print(f"Generating correlation plots (saving to {paths['spearman_plots']})...")
      visualize.plot_rho_distribution(df_corr_adj, save_path=paths['spearman_plots'])
      visualize.plot_volcano(df_corr_adj, save_path=paths['spearman_plots'])
      visualize.plot_correlation_clustermap(df_corr_adj, save_path=paths['spearman_plots'])
      visualize.plot_top_correlation_heatmap(df_corr_adj, save_path=paths['spearman_plots'])
-     # Scatter plots need the filtered data passed explicitly
+     # Scatter plots need the VARAIANCE FILTERED feature data
      visualize.plot_top_scatter(df_corr_adj, rna_data_filtered, metabolite_data_filtered, save_path=paths['spearman_plots'])
 else:
-     print("Skipping correlation visualization as adjusted results are not available.")
+     print("Skipping correlation visualization as results are not available.")
 
 
 # --- 10. NMF Analysis & Evaluation ---
@@ -261,9 +291,9 @@ for k_to_run in k_values_to_test:
         continue # Skip to next k
 
     nmf_results = analysis.run_nmf_concatenated(
-        rna_data_filtered,
-        metabolite_data_filtered,
-        n_components=k_to_run, # Use loop variable
+        rna_data_filtered,          # Use variance filtered features
+        metabolite_data_filtered,   # Use variance filtered features
+        n_components=k_to_run,
         max_iter=config.NMF_DEFAULT_MAX_ITER,
         random_state=config.NMF_DEFAULT_RANDOM_STATE
     )
@@ -275,21 +305,20 @@ for k_to_run in k_values_to_test:
                  h_filename = config.NMF_H_FILENAME_TEMPLATE.format(k=k_to_run)
                  w_rna_filename = config.NMF_W_RNA_FILENAME_TEMPLATE.format(k=k_to_run)
                  w_metab_filename = config.NMF_W_METAB_FILENAME_TEMPLATE.format(k=k_to_run)
-                 nmf_results["H_df"].to_csv(os.path.join(paths['nmf'], h_filename), index=True)
-                 nmf_results["W_rna_df"].to_csv(os.path.join(paths['nmf'], w_rna_filename), index=True)
-                 nmf_results["W_metab_df"].to_csv(os.path.join(paths['nmf'], w_metab_filename), index=True)
+                 # Check if DFs exist before saving
+                 if nmf_results["H_df"] is not None: nmf_results["H_df"].to_csv(os.path.join(paths['nmf'], h_filename), index=True)
+                 if nmf_results["W_rna_df"] is not None: nmf_results["W_rna_df"].to_csv(os.path.join(paths['nmf'], w_rna_filename), index=True)
+                 if nmf_results["W_metab_df"] is not None: nmf_results["W_metab_df"].to_csv(os.path.join(paths['nmf'], w_metab_filename), index=True)
                  print(f"Saved NMF results for k={k_to_run} to {paths['nmf']}")
              except Exception as e: print(f"Warning: Could not save NMF results for k={k_to_run}: {e}")
 
         # Evaluate NMF results
         print(f"\n--- Evaluating NMF k={k_to_run} ---")
-        # Evaluation function needs the results components and original (filtered) data for V recalc
+        # Pass original filtered data FOR V RECALCULATION inside evaluate_nmf
         evaluation_metrics = visualize.evaluate_nmf(
             nmf_results["H_df"],
             nmf_results["W_rna_df"],
             nmf_results["W_metab_df"],
-            # Pass original filtered data FOR V RECALCULATION inside evaluate_nmf
-            # This avoids keeping the large V_combined_imputed in memory for all k
             rna_data_filtered=rna_data_filtered, # Pass original filtered data
             metabolite_data_filtered=metabolite_data_filtered, # Pass original filtered data
             model=nmf_results["model"],
@@ -318,30 +347,21 @@ if all_nmf_metrics:
          ax1.set_xlabel('Number of Components (k)')
          ax1.set_ylabel('Reconstruction Error (Frobenius)', color=color)
          ax1.plot(k_vals, recon_errors, marker='o', color=color, label='Reconstruction Error')
-         ax1.tick_params(axis='y', labelcolor=color)
-         ax1.grid(True, axis='x', linestyle=':')
+         ax1.tick_params(axis='y', labelcolor=color); ax1.grid(True, axis='x', linestyle=':')
 
          # Only plot relative error if calculated
          if not all(np.isnan(e) for e in relative_errors):
-             ax2 = ax1.twinx()
-             color = 'tab:blue'
+             ax2 = ax1.twinx(); color = 'tab:blue'
              ax2.set_ylabel('Relative Error', color=color)
              ax2.plot(k_vals, relative_errors, marker='s', linestyle='--', color=color, label='Relative Error')
              ax2.tick_params(axis='y', labelcolor=color)
 
-         plt.title('NMF Reconstruction Error vs. Number of Components (k)')
-         fig.tight_layout()
-         # Save this plot too
+         plt.title('NMF Reconstruction Error vs. Number of Components (k)'); fig.tight_layout()
          plot_filename_k_eval = os.path.join(paths['nmf_plots'], "nmf_k_evaluation_recon_error.png")
          try: plt.savefig(plot_filename_k_eval, dpi=150, bbox_inches='tight'); print(f"Saved k evaluation plot to: {plot_filename_k_eval}")
          except Exception as e_p: print(f"Error saving k eval plot: {e_p}")
-         plt.show()
-         plt.close()
-     else:
-         print("Could not plot reconstruction errors (values might be NaN).")
-
-else:
-    print("\nNo NMF evaluation metrics collected (NMF might have failed for all k).")
-
+         plt.show(); plt.close()
+     else: print("Could not plot reconstruction errors (values might be NaN).")
+else: print("\nNo NMF evaluation metrics collected (NMF might have failed for all k).")
 
 print("\n--- FULL ANALYSIS PIPELINE COMPLETE ---")
