@@ -11,9 +11,13 @@ DEFAULT_NMF_SUBFOLDER = 'NMF_Analysis_Strategy2'
 DEFAULT_PLOTS_SUBFOLDER = 'plots' # This will be relative within Spearman/NMF folders
 
 # --- Default Filenames ---
+# Input Data Related (Assumed relative to input_data folder set in main script)
+RNA_METADATA_FILENAME = 'rna_metadata.csv' # Metadata for RNA samples
+
+# Output Data Related (Assumed relative to base output path)
 METABOLITE_CLEANED_FILENAME = 'metabolite_data_cleaned_indexed.csv'
 METADATA_EXTRACTED_FILENAME = 'metabolite_metadata_from_cleaning.csv'
-RNA_COMBINED_FILENAME = 'rna_data_combined_raw.csv'
+# RNA_COMBINED_FILENAME = 'rna_data_combined_raw.csv' # Can uncomment if needed
 RNA_NORMALIZED_FILENAME = 'rna_data_normalized_log2.csv'
 MATCHED_METABOLITE_FILENAME = 'metabolite_data_matched_aligned.csv'
 MATCHED_RNA_FILENAME = 'rna_data_matched_aligned.csv'
@@ -38,17 +42,22 @@ NMF_DEFAULT_RANDOM_STATE = 42
 PLOT_PADJ_THRESHOLD = 0.05
 PLOT_RHO_THRESHOLD = 0.6
 PLOT_N_TOP_VOLCANO_LABELS = 10
-PLOT_HEATMAP_TOP_N_PAIRS = 200 # Increased from 100
-PLOT_HEATMAP_MAX_FEATURES = 50 # Changed from 25
-PLOT_N_TOP_POS_NEG_SCATTER = 10 # Changed from 15
+PLOT_HEATMAP_TOP_N_PAIRS = 200
+PLOT_HEATMAP_MAX_FEATURES = 50
+PLOT_N_TOP_POS_NEG_SCATTER = 10
 
 # --- Metadata Columns (used for index creation, extraction, etc.) ---
 # Adjust these based on your actual metadata/input files
-METADATA_SAMPLE_COL = 'sample' # Column containing sample names before index setting
+METADATA_SAMPLE_COL = 'sample' # Column containing sample names before index setting (in raw metabolite data)
+# List of potential metadata columns that might be extracted or present
 METADATA_ID_COLS = ['experiment_id', 'source_filename', 'group', 'ias_conc', 'rep', 'day', 'tracer']
-METADATA_COMPOSITE_ID_COLS = ['experiment_id', 'ias_conc', 'day', 'rep'] # Used to build index
-# Expected RNA metadata cols for separation before normalization
-RNA_METADATA_COLS_EXPECTED = ['experiment_id', 'treatment_group', 'replicate', 'arsenic_concentration', 'days']
+# Columns REQUIRED to build the standard composite ID
+METADATA_COMPOSITE_ID_COLS = ['experiment_id', 'ias_conc', 'day', 'rep']
+# Columns expected in the EXTERNAL RNA metadata file (besides original_rna_sample_id index)
+# These should align with METADATA_COMPOSITE_ID_COLS for consistent ID creation
+RNA_EXTERNAL_METADATA_COLS = ['experiment_id', 'ias_conc', 'day', 'rep'] # Make sure these match Composite ID cols
+# Columns expected in the combined RNA dataframe BEFORE normalization (for separation)
+RNA_METADATA_COLS_EXPECTED = ['experiment_id', 'treatment_group', 'replicate', 'arsenic_concentration', 'days'] # Used in normalize function - needs review based on actual processing
 
 # --- Other ---
 METABOLITE_ID_PREFIXES = ['ip_', 'hilica_', 'c30pos_']

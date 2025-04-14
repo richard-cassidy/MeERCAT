@@ -1,27 +1,33 @@
-# mercat_analyzer/mercat_analyzer/utils.py
+# meercat/meercat/utils.py
 
 import re
 import pandas as pd
 import numpy as np
 import os
-import time
+import time # Keep time if setup_paths or other future utils need it
 
 def setup_paths(base_path, project_folder, spearman_subfolder, nmf_subfolder, plots_subfolder):
-    """Creates directory structure and returns paths."""
+    """Creates directory structure relative to base_path and returns paths dictionary."""
     paths = {}
-    paths['base'] = os.path.join(base_path, project_folder)
+    # Base output directory for the project
+    paths['base'] = os.path.abspath(os.path.join(base_path, project_folder))
+    # Specific analysis output directories
     paths['spearman'] = os.path.join(paths['base'], spearman_subfolder)
     paths['nmf'] = os.path.join(paths['base'], nmf_subfolder)
+    # Plot directories within analysis folders
     paths['spearman_plots'] = os.path.join(paths['spearman'], plots_subfolder)
     paths['nmf_plots'] = os.path.join(paths['nmf'], plots_subfolder)
 
-    for path in paths.values():
+    # Create all defined directories
+    print(f"\n--- Ensuring Output Directories Exist ---")
+    for key, path in paths.items():
         try:
             os.makedirs(path, exist_ok=True)
+            # print(f"  Confirmed/Created: {path}") # Optional confirmation
         except OSError as e:
-            print(f"Warning: Could not create directory {path}: {e}")
-            # Depending on severity, you might want to raise the error
-    print(f"Ensured directories exist under: {paths['base']}")
+            print(f"WARNING: Could not create directory {path}: {e}")
+            # Depending on severity, you might want to raise the error or handle it
+    print(f"Base output directory: {paths['base']}")
     return paths
 
 def identify_metabolite_columns(columns, prefix_patterns, suffix_regex):
@@ -43,8 +49,9 @@ def identify_metabolite_columns(columns, prefix_patterns, suffix_regex):
     return metabolite_cols, non_metabolite_cols
 
 def clean_feature_names(columns):
-    """Cleans gene IDs (e.g., removes .version numbers)."""
+    """Cleans feature IDs (e.g., removes .version numbers from gene IDs)."""
     original_cols = list(columns)
+    # Ensure conversion to string before applying string methods
     cleaned_cols = pd.Index(original_cols).astype(str).str.replace(r'\.\d+$', '', regex=True)
     num_renamed = sum(1 for orig, clean in zip(original_cols, cleaned_cols) if orig != clean)
     if num_renamed > 0:
@@ -53,25 +60,21 @@ def clean_feature_names(columns):
 
 def handle_duplicate_features(df):
     """Handles duplicate feature columns by summing."""
+    # Ensure columns are strings before checking duplicates
+    df.columns = df.columns.astype(str)
     duplicated_features = df.columns[df.columns.duplicated(keep=False)]
     unique_duplicates = duplicated_features.unique()
     if not unique_duplicates.empty:
         print(f"  Found {len(unique_duplicates)} duplicate feature columns. Consolidating by summing...")
         # Ensure numeric before summing
         numeric_cols = df.select_dtypes(include=np.number).columns
-        non_numeric_cols = df.select_dtypes(exclude=np.number).columns
         df_numeric_part = df[numeric_cols].apply(pd.to_numeric, errors='coerce').fillna(0)
+        # Group by column names (level=0 on axis=1) and sum
         df_consolidated = df_numeric_part.groupby(level=0, axis=1).sum()
-        # Re-attach non-numeric if needed, though usually not needed for feature matrix
-        # df = pd.concat([df[non_numeric_cols], df_consolidated], axis=1)
-        df = df_consolidated # Usually just keep the numeric part
+        # Only return the consolidated numeric part
+        df = df_consolidated
         print(f"  Shape after consolidating duplicates: {df.shape}")
     return df
 
-def clean_index(index):
-    """Converts index to string, lowercases, and strips whitespace."""
-    if isinstance(index, pd.Index):
-        return index.astype(str).str.lower().str.strip()
-    else:
-        print("Warning: Input is not a pandas Index. Attempting conversion.")
-        return pd.Index(index).astype(str).str.lower().str.strip()
+# clean_index function is NOT in this file; it's moved to load_data.py
+# Data loading functions (load_metadata, load_metabolite_files, etc.) are NOT in this file; they are in load_data.py
