@@ -3,17 +3,26 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) <!-- Choose your license and update badge -->
 
 A Python package designed to process, integrate, and analyze paired transcriptomics (RNA-Seq) and metabolomics (mass spectrometry) data. MeERCAT facilitates a workflow from raw data loading and cleaning to correlation analysis (Spearman) and dimensionality reduction using Non-negative Matrix Factorization (NMF) for identifying joint patterns.
-                                     
-                                                 
-                                                
-                                                 _,,,__
-                                               ╓R"^╙Ñ▄  `╙²K╦_
-                                               jÜ╩ `█M`      _`¥╦_
-                                               Å_╙≡╩`,.   ,▒║▓█φ ╙W_
-  _ __ ___   ___  ___ _ __ ___ __ _| |_        ╠ 'ⁿⁿ²`      `╙╚╩╩  '`╙¥▄╕
- | '_ ` _ \ / _ \/ _ \ '__/ __/ _` | __|       ▓_           ,╓≡φ▒RK▓RK ╙▌
- | | | | | |  __/  __/ | | (_| (_| | |_        ╫           ,≡²^╓≡^` _╓╗╩
- |_| |_| |_|\___|\___|_|  \___\__,_|\__|       ║▒           ,=`_╓╔*^`
+
+
+
+                                    _   
+  _ __ ___   ___  ___ _ __ ___ __ _| |_ 
+ | '_ ` _ \ / _ \/ _ \ '__/ __/ _` | __|
+ | | | | | |  __/  __/ | | (_| (_| | |_ 
+ |_| |_| |_|\___|\___|_|  \___\__,_|\__|
+
+     
+     
+     
+                                                      _,,,__
+                                                 ╓R"^╙Ñ▄  `╙²K╦_
+                                                jÜ╩ `█M`      _`¥╦_
+                                                Å_╙≡╩`,.   ,▒║▓█φ ╙W_
+                                               ╠ 'ⁿⁿ²`      `╙╚╩╩  '`╙¥▄╕
+                                               ▓_           ,╓≡φ▒RK▓RK ╙▌
+                                               ╫           ,≡²^╓≡^` _╓╗╩
+                                               ║▒           ,=`_╓╔*^`
                                                [▒           ,A╙▌
                                                _R          ,╜  ╠_
                                               ╒R          ,▒    ╙_
@@ -43,6 +52,12 @@ A Python package designed to process, integrate, and analyze paired transcriptom
                   `╙╙▀≡╗╦╔╔╔╔╔╗╗╗≡≡=≡≡≡≡≡≡≡=≡≡╝,              `_á▒,║▒╦
                                                `╙≡╖_        _²^` _╘╬╠"
                                                    ``^^%H²^^'^^%%╙╙╙
+     
+     
+     
+    
+---
+^[ [^ascii ^art ^generator](http://asciiart.club) ^] 
 
 ## Overview
 
