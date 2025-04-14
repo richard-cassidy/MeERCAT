@@ -89,3 +89,11 @@ def load_rna_files(rna_file_dict, rows_are_genes=True):
 
     print(f"\nFinished loading RNA files. {len(loaded_data)} DataFrames loaded.")
     return loaded_data
+
+
+
+
+
+def load_external_rna_metadata(rna_metadata_filepath):
+    """Loads external RNA metadata file, indexed by original_rna_sample_id."""
+    print(f"\n--- Loading External RNA Metadata from: {rna_metadata_filepath} ---")
