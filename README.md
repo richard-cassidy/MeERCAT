@@ -5,15 +5,6 @@
 A Python package designed to process, integrate, and analyze paired transcriptomics (RNA-Seq) and metabolomics (mass spectrometry) data. MeERCAT facilitates a workflow from raw data loading and cleaning to correlation analysis (Spearman) and dimensionality reduction using Non-negative Matrix Factorization (NMF) for identifying joint patterns.
 
 
-
-                                    _   
-  _ __ ___   ___  ___ _ __ ___ __ _| |_ 
- | '_ ` _ \ / _ \/ _ \ '__/ __/ _` | __|
- | | | | | |  __/  __/ | | (_| (_| | |_ 
- |_| |_| |_|\___|\___|_|  \___\__,_|\__|
-
-     
-     
      
                                                       _,,,__
                                                  ╓R"^╙Ñ▄  `╙²K╦_
