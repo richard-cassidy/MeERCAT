@@ -4,6 +4,53 @@
 
 A Python package designed to process, integrate, and analyze paired transcriptomics (RNA-Seq) and metabolomics (mass spectrometry) data. MeERCAT facilitates a workflow from raw data loading and cleaning to correlation analysis (Spearman) and dimensionality reduction using Non-negative Matrix Factorization (NMF) for identifying joint patterns.
 
+     
+     
+     
+                                                      _,,,__
+                                                 ╓R"^╙Ñ▄  `╙²K╦_
+                                                jÜ╩ `█M`      _`¥╦_
+                                                Å_╙≡╩`,.   ,▒║▓█φ ╙W_
+                                               ╠ 'ⁿⁿ²`      `╙╚╩╩  '`╙¥▄╕
+                                               ▓_           ,╓≡φ▒RK▓RK ╙▌
+                                               ╫           ,≡²^╓≡^` _╓╗╩
+                                               ║▒           ,=`_╓╔*^`
+                                               [▒           ,A╙▌
+                                               _R          ,╜  ╠_
+                                              ╒R          ,▒    ╙_
+                                             ╒▌           ╙▌     ▓
+                                             ▓Ü           j▌    '▓
+                                            ╠`╙╦_          ▒     █
+                                           ,▌_ »▄▒K▄_      ▓_    Ü
+                                           ║_`^²╙^         `▓    ▓
+                                           ╬░_              ╙▒   ║▄
+                                          ,▌ [▒▒R     ╓      ╙   ▐▒¼
+                                          j▒²╙╙"      ▐_         ▐▒`¼
+                                          ║▒_          ▓      ╔_ 'Ü  ¼
+                                          ║_,╠╩`       `▓_     `W_╠  'H
+                                          ║`             ╙^≡╦_   ╚▓   ╠
+                                          ╚█___,,            ╚╕   ╙█_ ╠
+                                          '▒ ╓╣╬              ║_    ║_▌
+                                           R^^`               ╚█W_╔_╬▒`
+                                           ║,__,╗m             ║_`Φ▒▀
+                                           '▌_╓Ä^       ____   `▌  Ü
+                                            ║`       ╒M^`  ``¥╕'╠  ╬
+                                            'H                ║▒Ü '╬
+                                             ²╕               '╣  ╓▌
+                                              ▐_               ╠  ╫
+                                   __╓╓▄╦≡#KR²║Ñ              'K |▒
+               ▓█▄▄,__       _,╦≡%╩╙Γ` `      ║▒              ,▌ ║H
+                ╙██████Ñ"^""`                 ╬               ║H ╠__
+                  `╙╙▀≡╗╦╔╔╔╔╔╗╗╗≡≡=≡≡≡≡≡≡≡=≡≡╝,              `_á▒,║▒╦
+                                               `╙≡╖_        _²^` _╘╬╠"
+                                                   ``^^%H²^^'^^%%╙╙╙
+     
+     
+     
+    
+---
+^[ [^ascii ^art ^generator](http://asciiart.club) ^] 
+
 ## Overview
 
 Mass spectrometry data integration presents numerous challenges that make it difficult to incorporate into many sequencing-based multi-omics workflows. This package provides tools to handle common challenges in integrating RNA-Seq count data and metabolomics abundance data, specifically focusing on:
