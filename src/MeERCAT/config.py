@@ -1,31 +1,43 @@
-# mercat_analyzer/meercat/config.py
+# MeERCAT/src/meercat/config.py
 
 # --- Default Paths ---
 # Define default SUBDIRECTORY names. The main script will construct the full path.
 # Use '.' to represent the current working directory or a user-defined base path.
-DEFAULT_BASE_SAVE_PATH = './MeERCAT_Output/' # Default location for output relative to where script is run
+DEFAULT_BASE_SAVE_PATH = './meercat_output/' # Default location for output relative to where script is run
 DEFAULT_PROJECT_FOLDER = '' # Set to empty if output subfolders should be directly under base path,
-                            # Or set a name like 'Analysis_Run' if you want BASE_PATH/Analysis_Run/Spearman...
-DEFAULT_SPEARMAN_SUBFOLDER = 'Spearman_Analysis'
-DEFAULT_NMF_SUBFOLDER = 'NMF_Analysis_Strategy2'
+DEFAULT_SPEARMAN_SUBFOLDER = 'correlation_analysis'
+DEFAULT_NMF_SUBFOLDER = 'NMF_Analysis'
 DEFAULT_PLOTS_SUBFOLDER = 'plots' # This will be relative within Spearman/NMF folders
 
 # --- Default Filenames ---
-# Input Data Related (Assumed relative to input_data folder set in main script)
-RNA_METADATA_FILENAME = 'rna_metadata.csv' # Metadata for RNA samples
+# Input Data Filenames
+##### Assumed relative to input_data folder set in main script.
 
-# Output Data Related (Assumed relative to base output path)
+RNA_METADATA_FILENAME = 'rna_metadata.csv' # Metadata for RNA samples
+EXPERIMENT_MATADATA_FILENAME = 'experiment_metadata.csv' # General metadata for all experiments
+
+# Output Data Filenames
+##### Assumed relative to base output path
+
+#Processed metabolite data
 METABOLITE_CLEANED_FILENAME = 'metabolite_data_cleaned_indexed.csv'
-METADATA_EXTRACTED_FILENAME = 'metabolite_metadata_from_cleaning.csv'
-# RNA_COMBINED_FILENAME = 'rna_data_combined_raw.csv' # Can uncomment if needed
-RNA_NORMALIZED_FILENAME = 'rna_data_normalized_log2.csv'
-MATCHED_METABOLITE_FILENAME = 'metabolite_data_matched_aligned.csv'
-MATCHED_RNA_FILENAME = 'rna_data_matched_aligned.csv'
+METABOLITE_METADATA_EXTRACTED_FILENAME = 'metabolite_metadata_from_cleaning.csv'
+
+#Processed RNA data
+RNA_CLEANED_AND_NORMALIZED_FILENAME = 'rna_data_cleaned_and_normalized.csv'
+
+#Merged RNA and Metabolite data from cleaned datasets
+RNA_METABOLITES_ALL_MERGED_FILENAME = 'rna_metabolite_all_merged.csv'
+RNA_METABOLITES_ONLY_MATCHED_FILENAME = 'rna_metabolite_matched.csv'
+
+#Correlation files
 CORRELATION_RAW_FILENAME = 'spearman_correlation_results_filtered.csv'
 CORRELATION_ADJ_FILENAME = 'spearman_correlation_results_filtered_adj.csv'
-NMF_H_FILENAME_TEMPLATE = 'NMF_Strategy2_H_matrix_k{k}.csv'
-NMF_W_RNA_FILENAME_TEMPLATE = 'NMF_Strategy2_W_rna_matrix_k{k}.csv'
-NMF_W_METAB_FILENAME_TEMPLATE = 'NMF_Strategy2_W_metab_matrix_k{k}.csv'
+
+#NMF files
+NMF_H_FILENAME_TEMPLATE = 'NMF_H_matrix_k{k}.csv'
+NMF_W_RNA_FILENAME_TEMPLATE = 'NMF_W_rna_matrix_k{k}.csv'
+NMF_W_METAB_FILENAME_TEMPLATE = 'NMF_W_metab_matrix_k{k}.csv'
 
 # --- Filtering Parameters ---
 VAR_FILTER_TOP_N_GENES = 500
