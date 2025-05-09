@@ -2,7 +2,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) <!-- Choose your license and update badge -->
 
-A Python package designed to process, integrate, and analyze paired transcriptomics (RNA-Seq) and metabolomics (mass spectrometry) data. MeERCAT facilitates a workflow from raw data loading and cleaning to correlation analysis (Spearman) and dimensionality reduction using Non-negative Matrix Factorization (NMF) for identifying joint patterns.
+A Python package designed to process, integrate, and analyze paired transcriptomics (RNA-Seq) and metabolomics (mass spectrometry) data. (Not fully functional yet)
 
 
      
@@ -50,7 +50,7 @@ A Python package designed to process, integrate, and analyze paired transcriptom
 ---
 ^[ [^ascii ^art ^generator](http://asciiart.club) ^] 
 
-## Overview
+<!-- ## Overview
 
 Mass spectrometry data integration presents numerous challenges that make it difficult to incorporate into many sequencing-based multi-omics workflows. This package provides tools to handle common challenges in integrating RNA-Seq count data and metabolomics abundance data, specifically focusing on:
 
@@ -108,4 +108,4 @@ Currently, this package is intended for local installation from source.
 
 ## Input Data Requirements
 
-The package expects input data to be organized in a specific structure within a base input directory. By default, it looks for an `input_data` subdirectory relative to where the analysis script is run.
+The package expects input data to be organized in a specific structure within a base input directory. By default, it looks for an `input_data` subdirectory relative to where the analysis script is run. -->
