@@ -1,5 +1,7 @@
 # MeERCAT/src/meercat/config.py
 
+
+
 # --- Default Paths ---
 # Define default SUBDIRECTORY names. The main script will construct the full path.
 # Use '.' to represent the current working directory or a user-defined base path.
@@ -15,6 +17,8 @@ DEFAULT_PLOTS_SUBFOLDER = 'plots' # This will be relative within Spearman/NMF fo
 
 RNA_METADATA_FILENAME = 'rna_metadata.csv' # Metadata for RNA samples
 EXPERIMENT_MATADATA_FILENAME = 'experiment_metadata.csv' # General metadata for all experiments
+RNA_EXTERNAL_METADATA_COLS = ['sample_ID', 'ias_conc', 'day', 'rep']
+
 
 # Output Data Filenames
 ##### Assumed relative to base output path
@@ -67,7 +71,7 @@ METADATA_ID_COLS = ['experiment_id', 'source_filename', 'group', 'ias_conc', 're
 METADATA_COMPOSITE_ID_COLS = ['experiment_id', 'ias_conc', 'day', 'rep']
 # Columns expected in the EXTERNAL RNA metadata file (besides original_rna_sample_id index)
 # These should align with METADATA_COMPOSITE_ID_COLS for consistent ID creation
-RNA_EXTERNAL_METADATA_COLS = ['experiment_id', 'ias_conc', 'day', 'rep'] # Make sure these match Composite ID cols
+#RNA_EXTERNAL_METADATA_COLS = ['experiment_id', 'ias_conc', 'day', 'rep'] # Make sure these match Composite ID cols
 # Columns expected in the combined RNA dataframe BEFORE normalization (for separation)
 RNA_METADATA_COLS_EXPECTED = ['experiment_id', 'treatment_group', 'replicate', 'arsenic_concentration', 'days'] # Used in normalize function - needs review based on actual processing
 

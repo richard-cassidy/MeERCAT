@@ -1,4 +1,7 @@
+# MeERCAT/src/meercat/load_data.py
 # Load Data Function
+
+
 import pandas as pd
 import os
 from typing import Dict, Optional
@@ -6,8 +9,9 @@ from meercat import config
 import pandas as pd
 import os
 from typing import Dict, Optional
-
-
+import pandas as pd
+import anndata as ad
+import numpy as np
 
 
 # Helper Function 1: Load RNA and Metabolite Data sets
@@ -23,19 +27,34 @@ def load_data(input_dir: str) -> Dict[str, Dict[str, pd.DataFrame]]:
                 if filename.endswith('_RNA.csv'):
                     exp_id = filename.removesuffix('_RNA.csv')
                     if exp_id:
-                        try: rna_data[exp_id] = pd.read_csv(file_path)
+                        try: 
+                          rna_data[exp_id] = pd.read_csv(file_path)
+                          if rna_data[exp_id] is not None:
+                            rna_data[exp_id].columns = rna_data[exp_id].columns.str.lower()
+                            # INSPECTION POINT 1: Print RNA data shape and columns immediately after loading
+                            print(f"\n--- RNA Data for Experiment {exp_id} (After Loading) ---")
+                            print(f"Shape: {rna_data[exp_id].shape}")
+                            print(f"Columns: {rna_data[exp_id].columns.tolist()}")
                         except Exception as e: print(f"  * Warning: Failed to load RNA file {filename}: {e}")
                 elif filename.endswith('_metabolites.csv'):
                     exp_id = filename.removesuffix('_metabolites.csv')
                     if exp_id:
-                       try: metabolite_data[exp_id] = pd.read_csv(file_path)
+                       try: 
+                          metabolite_data[exp_id] = pd.read_csv(file_path)
+                          if metabolite_data[exp_id] is not None:
+                            metabolite_data[exp_id].columns = metabolite_data[exp_id].columns.str.lower()
                        except Exception as e: print(f"  * Warning: Failed to load Metabolite file {filename}: {e}")
         print(f"   loaded RNA and metabolite files")
+        print(f"----------------------------\n\n")
+
     except FileNotFoundError:
          print(f"  * Error: Input directory for omics data not found or became inaccessible: {input_dir}")
     except Exception as e:
         print(f"  * Error: An unexpected error occurred while reading omics data files: {e}")
     return {"rna_data": rna_data, "metabolite_data": metabolite_data}
+
+
+
 
 # Helper Function 2: Load Metadata 
 def load_metadata(
@@ -63,11 +82,94 @@ def load_metadata(
         rna_meta_path = os.path.join(input_dir, rna_metadata_filename)
         metadata['rna'] = pd.read_csv(rna_meta_path)
         print(f"   loaded RNA metadata")
+
+        # INSPECTION POINT 2: Print RNA metadata shape, columns, and unique values
+        print("\n--- RNA Metadata (After Loading) ---")
+        print(f"Shape: {metadata['rna'].shape}")
+        print(f"Columns: {metadata['rna'].columns.tolist()}")
+        print(f"Unique original_rna_sample_id: {metadata['rna']['original_rna_sample_id'].unique().tolist()}")
+        print(f"Unique sample_id: {metadata['rna']['sample_ID'].unique().tolist()}")
+
     except FileNotFoundError:
         print(f"  * Warning: RNA metadata file not found: {rna_meta_path}")
     except Exception as e:
         print(f"  * Warning: Failed to load RNA metadata file {rna_metadata_filename}: {e}")
     return metadata
+
+import pandas as pd
+
+
+def rename_rna_data_columns(
+    rna_data: dict[str, pd.DataFrame], rna_metadata: pd.DataFrame
+) -> dict[str, pd.DataFrame]:
+    """Renames columns in RNA data DataFrames using the RNA metadata.
+    Handles case sensitivity, whitespace, and missing values.
+    """
+
+    if rna_metadata is None or rna_metadata.empty:
+        print(
+            "RNA metadata is missing or empty. Returning RNA data with original"
+            " column names."
+        )
+        return rna_data
+
+    renamed_rna_data = {}
+    for exp_id, rna_df in rna_data.items():
+        try:
+            # INSPECTION POINT 3: Print RNA data columns BEFORE renaming in this loop
+            print(f"\n--- RNA Data for Experiment {exp_id} (Before Renaming) ---")
+            print(f"Columns: {rna_df.columns.tolist()}")
+
+            # Convert relevant columns to string type and strip whitespace:
+            rna_df.columns = rna_df.columns.astype(str).str.strip()
+            rna_metadata['original_rna_sample_id'] = rna_metadata['original_rna_sample_id'].astype(str).str.strip()
+            rna_metadata['sample_ID'] = rna_metadata['sample_ID'].astype(str).str.strip()
+
+            # Convert to lowercase for case-insensitive matching
+            rna_metadata['original_rna_sample_id'] = rna_metadata['original_rna_sample_id'].str.lower()
+            rna_df.columns = rna_df.columns.str.lower()
+
+            # Filter RNA metadata, remove duplicates, and handle NaN values
+            filtered_rna_metadata = rna_metadata[
+                ["original_rna_sample_id", "sample_ID"]
+            ].drop_duplicates().dropna(subset=['original_rna_sample_id', 'sample_ID'])  # Drop rows with NaN in relevant columns
+
+            # INSPECTION POINT 4: Print filtered metadata before mapping
+            print("\n--- Filtered Metadata ---")
+            print(filtered_rna_metadata.head())
+
+            # Create mapping dictionary
+            id_mapping = dict(
+                zip(
+                    filtered_rna_metadata["original_rna_sample_id"],
+                    filtered_rna_metadata["sample_ID"],
+                )
+            )
+
+            # INSPECTION POINT 5: Print the ID mapping dictionary
+            print("\n--- ID Mapping Dictionary ---")
+            print(id_mapping)
+
+            # Rename columns in the RNA DataFrame
+            new_columns = []
+            for col in rna_df.columns:
+                if col in id_mapping:
+                    new_columns.append(id_mapping[col])
+                else:
+                    new_columns.append(col)  # Keep original if not in metadata
+
+            renamed_rna_data[exp_id] = rna_df.copy()
+            renamed_rna_data[exp_id].columns = new_columns
+
+        except Exception as e:
+            print(
+                f"  * Warning: Failed to rename RNA data columns for experiment"
+                f" '{exp_id}': {e}.  Returning original DataFrame."
+            )
+            renamed_rna_data[exp_id] = rna_df
+            print(f"Experiment {exp_id}: id_mapping = {id_mapping}")
+        
+    return renamed_rna_data
 
 
 ### Main Loading Function  ###
@@ -150,7 +252,8 @@ def load_all_data(
     # else: # Optional warning
     #     print("  * Warning: No Metabolite data files were successfully loaded.")
 
-
+    # --- Rename RNA data columns ---
+    all_data["rna_data"] = rename_rna_data_columns(all_data["rna_data"], all_data["rna_metadata"])
 
 
     # --- Final Summary ---
@@ -164,145 +267,3 @@ def load_all_data(
 
 
     return all_data
-
-
-# # ==================================================
-# # Helper Function(s) needed within this module
-# # ==================================================
-# def clean_index(index):
-#     """Converts index to string, lowercases, and strips whitespace."""
-#     # Check if input is already a pandas Index
-#     if isinstance(index, pd.Index):
-#         # Ensure it's string type before using .str methods
-#         return index.astype(str).str.lower().str.strip()
-#     # Handle other potential iterable inputs (like lists, Series)
-#     elif isinstance(index, (list, pd.Series)):
-#          # print("Warning: Input is not a pandas Index, converting.") # Less verbose
-#          return pd.Index(index).astype(str).str.lower().str.strip()
-#     # Handle single string or other types gracefully
-#     elif isinstance(index, str):
-#          return index.lower().strip()
-#     else:
-#          # print(f"Warning: Unexpected input type ({type(index)}) for clean_index.") # Less verbose
-#          try:
-#              # Attempt conversion assuming input might be a single item not in a list
-#              return pd.Index([str(index)]).astype(str).str.lower().str.strip()[0]
-#          except Exception as e:
-#              print(f"ERROR: Could not convert input to cleanable index: {e}")
-#              return index # Return original if conversion fails
-
-# # ==================================================
-# # Data Loading Functions
-# # ==================================================
-
-# def load_metadata(metadata_filepath):
-#     """Loads metadata from a CSV file."""
-#     print(f"\n--- Loading Metadata from: {metadata_filepath} ---")
-#     if not os.path.exists(metadata_filepath):
-#         print(f"ERROR: Metadata file not found at '{metadata_filepath}'")
-#         return None
-#     try:
-#         metadata_df = pd.read_csv(metadata_filepath)
-#         print(f"Metadata loaded successfully. Shape: {metadata_df.shape}")
-#         # print("Head:\n", metadata_df.head()) # Optional
-#         return metadata_df
-#     except Exception as e:
-#         print(f"Error loading metadata file: {e}")
-#         return None
-
-
-
-
-
-# # --- Load Metabolites ---
-# def load_metabolite_files(metabolite_directory_path):
-#     """Loads multiple metabolite CSV files from a directory, standardizes columns, adds IDs."""
-#     print(f"\n--- Loading Metabolite Files from Directory: {metabolite_directory_path} ---")
-#     processed_data = {} # Dictionary to store loaded DataFrames keyed by filename
-#     if not os.path.isdir(metabolite_directory_path):
-#         print(f"ERROR: Metabolite input directory not found: {metabolite_directory_path}")
-#         return processed_data # Return empty dict
-#     metabolite_file_dict = { f: os.path.join(metabolite_directory_path, f)
-#                              for f in os.listdir(metabolite_directory_path) if f.lower().endswith('.csv') }
-#     if not metabolite_file_dict:
-#         print(f"Warning: No CSV files found in directory: {metabolite_directory_path}")
-#         return processed_data # Return empty dict
-#     print(f"Found {len(metabolite_file_dict)} potential CSV files to load.")
-
-#     for filename, filepath in metabolite_file_dict.items():
-#         print(f"\nProcessing: {filename}")
-#         try:
-#             df = pd.read_csv(filepath)
-#             df.columns = [str(c).lower().strip() for c in df.columns] # Standardize cols
-#             match = re.match(r'(MC\d+)', filename, re.IGNORECASE) or re.search(r'(MC\d+)', filename, re.IGNORECASE)
-#             experiment_id = match.group(1).upper() if match else "UNKNOWN_EXPERIMENT"
-#             if experiment_id == "UNKNOWN_EXPERIMENT": print(f"  Warning: No MC ID found in filename '{filename}'.")
-#             df['experiment_id'] = experiment_id
-#             df['source_filename'] = filename
-#             processed_data[filename] = df
-#         except Exception as e: print(f"  Error processing file {filename}: {e}")
-
-#     if not processed_data: print("\nERROR: No metabolite files were successfully loaded.")
-#     else: print(f"\nFinished loading metabolite files. {len(processed_data)} DataFrames loaded.")
-#     return processed_data
-
-
-# # --- Load RNA ---
-# def load_rna_files(rna_directory_path, rows_are_genes=True):
-#     """Loads multiple RNA seq count CSV files from a directory."""
-#     print(f"\n--- Loading RNA Count Files from Directory: {rna_directory_path} ---")
-#     loaded_data = {}
-#     if not os.path.isdir(rna_directory_path):
-#         print(f"ERROR: RNA input directory not found: {rna_directory_path}")
-#         return loaded_data
-#     rna_file_dict = { f: os.path.join(rna_directory_path, f)
-#                       for f in os.listdir(rna_directory_path) if f.lower().endswith('.csv')}
-#     if not rna_file_dict:
-#         print(f"Warning: No CSV files found in directory: {rna_directory_path}")
-#         return loaded_data
-#     print(f"Found {len(rna_file_dict)} potential CSV files to load.")
-
-#     for filename, filepath in rna_file_dict.items():
-#         print(f"\nProcessing RNA file: {filename}")
-#         try:
-#             # Load as string initially, specify index column
-#             # Use sep=None for auto-detection, engine='python' for flexibility
-#             df_raw = pd.read_csv(filepath, index_col=0, sep=None, engine='python', dtype=str)
-#             print(f"  Loaded '{filename}'. Initial shape: {df_raw.shape}")
-#             loaded_data[filename] = df_raw
-#         except Exception as e: print(f"  Error loading RNA count file '{filename}': {e}")
-
-#     if not loaded_data: print("\nERROR: No RNA files were successfully loaded.")
-#     else: print(f"\nFinished loading RNA files. {len(loaded_data)} DataFrames loaded.")
-#     return loaded_data
-
-
-# # --- Load RNA Metadata (Uses the local clean_index) ---
-# def load_external_rna_metadata(rna_metadata_filepath):
-#     """Loads external RNA metadata CSV, indexed by cleaned original_rna_sample_id."""
-#     print(f"\n--- Loading External RNA Metadata: {os.path.basename(rna_metadata_filepath)} ---")
-
-#     # 1. Check file existence
-#     if not os.path.exists(rna_metadata_filepath):
-#         print(f"ERROR: File not found at '{rna_metadata_filepath}'")
-#         return None
-
-#     # 2. Try loading, indexing, and cleaning
-#     try:
-#         # Assume first col is index ('original_rna_sample_id')
-#         metadata_df = pd.read_csv(rna_metadata_filepath, index_col=0)
-
-#         # Check if index was actually created
-#         if not isinstance(metadata_df.index, pd.Index):
-#              raise TypeError("Loaded data does not have a valid index after read_csv (check index_col=0).")
-
-#         # *** Call the clean_index function defined WITHIN this file ***
-#         metadata_df.index = clean_index(metadata_df.index)
-#         metadata_df.index.name = 'original_rna_sample_id' # Ensure index name is set
-
-#         print(f"  Successfully loaded and indexed. Shape: {metadata_df.shape}")
-#         return metadata_df
-
-#     except Exception as e: # Catch general exceptions during loading/indexing
-#         print(f"ERROR loading or processing RNA metadata file '{os.path.basename(rna_metadata_filepath)}': {e}")
-#         return None

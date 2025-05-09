@@ -1,0 +1,7 @@
+﻿Core ID,My Data ID,File name,Tissue Type,,Tracing,Harvest Method,Column Method,Column Method,Column Method,RNAseq,Test groups,Replicates,Total sample number,Machine,Experiment Description,other notes
+MC00407,RNPC097,MC00407_Merged_PoolSize.csv,Cell_Culture,Beas2B,none,Bligh_Dyer,IP,HLICA,,yes,2,4,8,unk,Cells were exposed to 2.0uM  iAs for 12 weeks and compared to their NT contol.,
+MC00409,RNPC098,MC00409_Merged_PoolSize.csv,Cell_Culture,Beas2B,none,Bligh_Dyer,IP,HILICA,C30pos,yes,4,3,18,unk,"Cell were exposed to arsenic for 2 days at concentrations of 0, 0.5, 2, and 4 uM",
+MC00544,RNPC142,MC00544_Merged_PoolSize.csv,Cell_Culture,Beas2B,none,Bligh_Dyer,IP,HILICA,,no,8,4,32,unk,Cells were taken at multiple timepoints during 6 month iAs transformation. ,
+MC00583,RNPC172,MC00583_Merged_PoolSize.csv,Cell_Culture,Beas2B,Glc_Gln,Bligh_Dyer,IP,,C30pos,no,3,4,24,unk,"Cell were exposed to arsenic for 2 days at concentrations of 0, 0.5, and 2",
+MC00592,RNPC178,MC00592_Merged_PoolSize.csv,Cell_Culture,Beas2B,Gln,Bligh_Dyer,IP,,C30pos,no,12,4,48,unk,Cells were exposed to 0.5uM iAs for 6 months with time matched controls.  ,
+MC00323,RNPC054,MC00323_IP_PoolSize_Bea.csv,Cell_Culture,Beas2B,Glc,Bligh_Dyer,IP,,C30pos,,4,3,12,unk,"Cell were exposed to arsenic for 2 days at concentrations of 0, 0.5, 2, and 4 uM","metab naming inconsistant with new process, RM"
